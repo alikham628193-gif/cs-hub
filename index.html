@@ -167,6 +167,104 @@ body:after{opacity:.23;background-image:linear-gradient(#7b8dbb0a 1px,transparen
 @media(max-width:650px){.wrap{padding-inline:13px}.nav{height:58px}.brand{font-size:23px}.hero-main{min-height:360px;padding:23px;border-radius:17px}.hero h1{font-size:clamp(49px,13vw,70px)}.hero p{font-size:12px}.hero-side{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.metric{padding:11px;border-radius:11px}.metric strong{font-size:24px}.metric small{font-size:8px;letter-spacing:.6px}.metric p{font-size:9px}.quick-access{grid-template-columns:repeat(4,minmax(0,1fr))}.quick-access a{padding:10px;border-radius:9px}.signal-strip{padding:10px;gap:8px}.signal-label{font-size:8px;letter-spacing:.5px}.signal-meta{font-size:9px}.sectionhead h2{font-size:25px}}
 @media(prefers-reduced-motion:reduce){#launchScreen:before,#launchScreen:after,#launchGrid,.launch-core,.launch-mark,.launch-progress i,.signal-wave i{animation:none!important}#launchScreen{transition:none}.hero-main{animation:none!important}}
 
+.team-click-card {
+  cursor: pointer;
+  transition: transform .25s ease, border-color .25s ease;
+}
+.team-click-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--green, #65ffb4);
+}
+.team-profile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .78);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s ease, visibility .25s ease;
+}
+.team-profile-modal.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+.team-profile-panel {
+  width: min(650px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid #343b48;
+  border-radius: 20px;
+  background: #11151d;
+  color: #fff;
+  transform: translateY(25px) scale(.97);
+  transition: transform .3s ease;
+}
+.team-profile-modal.is-open .team-profile-panel {
+  transform: translateY(0) scale(1);
+}
+.team-profile-close {
+  float: right;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.team-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 20px 0;
+}
+.team-profile-logo {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+}
+.team-profile-fallback {
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #222a37;
+  font-size: 24px;
+  font-weight: 800;
+}
+.team-profile-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 20px 0;
+}
+.team-profile-stats > div {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #1b222e;
+}
+.team-profile-stats span {
+  font-size: 11px;
+  color: #9ba7b8;
+}
+.team-profile-panel h3 {
+  margin-top: 24px;
+}
+body:has(.team-profile-modal.is-open) {
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-profile-modal,
+  .team-profile-panel,
+  .team-click-card {
+    transition: none;
+  }
+  }
+  
 </style>
 </head>
 <body>
@@ -331,7 +429,6 @@ function renderPlayers(items){
     </article>`;
   }).join(''):noData('Игроки не найдены','Измени поиск или проверь доступ к leaderboard endpoint.');
   bindFavs();
-}
 async function loadPlayers(){try{const d=await api('/cs2/leaderboards/rating?limit=60');state.players=arr(d);renderPlayers(state.players)}catch(e){$('#playersGrid').innerHTML=noData('Топ игроков недоступен',e.message+' · Проверь API документацию.')}}
 async function loadEvents(){try{const d=await api('/cs2/events/live');state.events=arr(d);const q=$('#eventSearch').value.toLowerCase();const items=state.events.filter(x=>JSON.stringify(x).toLowerCase().includes(q));$('#eventsGrid').innerHTML=items.length?items.slice(0,60).map(ev=>{const name=first(ev,['eventName','name','event_name']);return `<article class="card"><div class="cardtop"><span class="status live">● ACTIVE EVENT</span>${favButton('event',String(name))}</div><div class="playername">${esc(name)}</div><div class="playerteam">${esc(first(ev,['location','country','region'],'Место проведения не указано'))}</div><div class="stats"><div class="stat"><b>${esc(first(ev,['startDate','start_date'],'—'))}</b><span>START</span></div><div class="stat"><b>${esc(first(ev,['endDate','end_date'],'—'))}</b><span>END</span></div><div class="stat"><b>${esc(first(ev,['prizePool','prize_pool'],'—'))}</b><span>PRIZE</span></div></div><div class="meta" style="margin-top:12px"><span>${esc(first(ev,['tier','level'],'CS2 event'))}</span><a target="_blank" rel="noopener" href="https://www.hltv.org/events">Турниры ↗</a></div></article>`}).join(''):noData('Активных турниров не найдено','Посмотри календарь HLTV или проверь источник API.');$('#eventMetric').textContent=items.length}catch(e){$('#eventsGrid').innerHTML=noData('Турниры недоступны',e.message+' · Проверь API документацию.');$('#eventMetric').textContent='—'}}
 async function loadNews(){const feed=$('#newsFeed');$('#newsStatus').textContent='Загрузка…';try{const r=await fetch('https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=730&count=10&maxlength=300',{signal:AbortSignal.timeout(9000)});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json(),items=j.appnews?.newsitems||[];feed.innerHTML=items.length?items.map(n=>`<div class="newsitem"><a class="newstitle" target="_blank" rel="noopener" href="${esc(n.url||'https://store.steampowered.com/news/app/730')}">${esc(n.title)}</a><div class="newsmeta">${new Date((n.date||0)*1000).toLocaleString('ru-RU')} · STEAM NEWS</div></div>`).join(''):noData('Новостей нет','Источник вернул пустую ленту.');$('#newsStatus').textContent=items.length+' публикаций'}catch(e){feed.innerHTML=noData('Лента Steam не загрузилась','Возможно, браузер блокирует запрос (CORS). Открой официальные новости Steam по ссылке справа.');$('#newsStatus').textContent='Нет соединения'}}
